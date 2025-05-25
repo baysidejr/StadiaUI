@@ -1,0 +1,6 @@
+.button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;         /* Horizontal and vertical gap between buttons */
+    margin-bottom: 1.5rem; /* Space between rows */
+}

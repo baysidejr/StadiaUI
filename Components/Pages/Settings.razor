@@ -1,0 +1,319 @@
+@rendermode InteractiveServer
+@using StadiaUI.Components.Shared
+
+@page "/settings"
+
+<PageTitle>Settings - Game Launcher</PageTitle>
+
+<div class="settings-page">
+    <h2>Settings</h2>
+    <div class="settings-section">
+        @if (syncingGridDb)
+        {
+            <div style="margin-bottom: 1rem; color: orange; font-weight: bold;">
+                Syncing Game @currentSyncIndex of @currentSyncTotal: @currentSyncName
+            </div>
+        }
+        <div class="button-row">
+            <button @onclick="SyncSteamLibraryToDatabase" class="btn btn-primary" disabled="@fetching">Sync Steam Library to Database</button>
+            <button @onclick="SyncSteamGridDbAll" class="btn btn-warning" style="margin-left: 1rem;" disabled="@syncingGridDb">Sync ALL SteamGridDB Images</button>
+            <button @onclick="SyncSteamGridDbMissing" class="btn btn-warning" style="margin-left: 1rem;" disabled="@syncingGridDb">Sync ONLY Missing SteamGridDB Images</button>
+        </div>
+        <div class="button-row">      
+            <button @onclick="ShowGamesTable" class="btn btn-info" style="margin-left: 1rem;">Show Games Table</button>
+            <button @onclick="ShowLibraryCacheTable" class="btn btn-info" style="margin-left: 1rem;">Show LibraryCache Table</button>
+        </div>
+    </div>
+    <div class="settings-section">
+        @if (showGamesTable && gamesTable != null)
+        {
+            <h4>Games Table (Count: @gamesTable.Count)</h4>
+            <div style="overflow-x: auto;">
+            <table class="table table-striped" style="font-size: 0.85rem; min-width: 1200px;">
+                <thead>
+                    <tr>
+                        <th>SteamAppId</th>
+                        <th>Name</th>
+                        <th>PlaytimeForever</th>
+                        <th>LastUpdated</th>
+                        <th>IsInstalled</th>
+                        <th>Categories</th>
+                        <th>SteamIconUrl</th>
+                        <th>SteamGridImageUrl</th>
+                        <th>LocalImagePath</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var game in gamesTable)
+                    {
+                        <tr>
+                            <td>@game.SteamAppId</td>
+                            <td>@game.Name</td>
+                            <td>@game.PlaytimeForever</td>
+                            <td>@game.LastUpdated</td>
+                            <td>@game.IsInstalled</td>
+                            <td>@game.Categories</td>
+                            <td style="max-width: 200px; overflow-x: auto; word-break: break-all;">@game.SteamIconUrl</td>
+                            <td style="max-width: 200px; overflow-x: auto; word-break: break-all;">@game.SteamGridImageUrl</td>
+                            <td style="max-width: 200px; overflow-x: auto; word-break: break-all;">@game.LocalImagePath</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+        @if (showLibraryCacheTable && libraryCacheTable != null)
+        {
+            <h4>LibraryCache Table</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>LastSteamSync</th>
+                        <th>TotalGames</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cache in libraryCacheTable)
+                    {
+                        <tr>
+                            <td>@cache.Id</td>
+                            <td>@cache.LastSteamSync</td>
+                            <td>@cache.TotalGames</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        @if (ownedGames != null)
+        {
+            <p>Loaded @ownedGames.response.games.Count games:</p>
+            <ul>
+                @foreach (var game in ownedGames.response.games.Take(10))
+                {
+                    <li>@game.name</li>
+                }
+            </ul>
+        }
+        else if (fetching)
+        {
+            <p>Loading...</p>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <p style="color: red;">@errorMessage</p>
+        }
+        @if (!string.IsNullOrEmpty(syncGridDbMessage))
+        {
+            <p style="color: green;">@syncGridDbMessage</p>
+        }
+        @if (!string.IsNullOrEmpty(sampleGamesMessage))
+        {
+            <p style="color: green;">@sampleGamesMessage</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Inject] public SteamService SteamService { get; set; } = default!;
+    [Inject] public SteamGridDbService? SteamGridService { get; set; }
+    [Inject] public GameCacheService? GameCacheService { get; set; }
+
+    public OwnedGamesResponse? ownedGames { get; set; }
+    public Dictionary<int, string> betterImages { get; set; } = new();
+    public bool fetching = false;
+    public string errorMessage = string.Empty;
+    public List<CachedGame>? gamesTable { get; set; }
+    public List<GameLibraryCache>? libraryCacheTable { get; set; }
+    public bool showGamesTable = false;
+    public bool showLibraryCacheTable = false;
+    public string syncGridDbMessage = string.Empty;
+    public bool syncingGridDb = false;
+    public int currentSyncIndex = 0;
+    public int currentSyncTotal = 0;
+    public string currentSyncName = string.Empty;
+    public string sampleGamesMessage = string.Empty;
+
+    private async Task SyncSteamLibraryToDatabase()
+    {
+        fetching = true;
+        errorMessage = string.Empty;
+        try
+        {
+            if (GameCacheService != null)
+            {
+                await GameCacheService.RefreshGameLibraryAsync();
+                gamesTable = await GameCacheService.GetGamesTableAsync();
+                showGamesTable = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to sync and cache games: {ex.Message}";
+        }
+        fetching = false;
+    }
+
+    private async Task SyncSteamGridDbAll()
+    {
+        syncingGridDb = true;
+        syncGridDbMessage = string.Empty;
+        currentSyncIndex = 0;
+        currentSyncTotal = 0;
+        currentSyncName = string.Empty;
+        int retryCount = 0;
+        const int maxRetries = 5;
+        if (GameCacheService != null)
+        {
+            var games = await GameCacheService.GetGamesTableAsync();
+            currentSyncTotal = games.Count;
+            int updated = 0;
+            for (int i = 0; i < games.Count; i++)
+            {
+                var game = games[i];
+                currentSyncIndex = updated + 1;
+                currentSyncName = game.Name;
+                StateHasChanged();
+                bool success = false;
+                retryCount = 0;
+                while (!success && retryCount < maxRetries)
+                {
+                    try
+                    {
+                        await GameCacheService.CacheGameImageAsync(game);
+                        success = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.Message.Contains("429") || ex.Message.Contains("401"))
+                        {
+                            syncGridDbMessage = $"Hit rate limit. Waiting 1 minute... (Retry {retryCount + 1} of {maxRetries})";
+                            StateHasChanged();
+                            await Task.Delay(60000); // Wait 1 minute
+                            retryCount++;
+                        }
+                        else
+                        {
+                            syncGridDbMessage = $"Error: {ex.Message}";
+                            StateHasChanged();
+                            break;
+                        }
+                    }
+                }
+                if (!success)
+                {
+                    syncGridDbMessage = $"Hit rate limit too many times. Cancelling process.";
+                    StateHasChanged();
+                    break;
+                }
+                updated++;
+                await Task.Delay(1500);
+            }
+            if (retryCount < maxRetries)
+            {
+                syncGridDbMessage = $"Synced images for {updated} games from SteamGridDB.";
+            }
+        }
+        else
+        {
+            syncGridDbMessage = "GameCacheService not available.";
+        }
+        currentSyncIndex = 0;
+        currentSyncTotal = 0;
+        currentSyncName = string.Empty;
+        syncingGridDb = false;
+    }
+
+    private async Task SyncSteamGridDbMissing()
+    {
+        syncingGridDb = true;
+        syncGridDbMessage = string.Empty;
+        currentSyncIndex = 0;
+        currentSyncTotal = 0;
+        currentSyncName = string.Empty;
+        int retryCount = 0;
+        const int maxRetries = 5;
+        if (GameCacheService != null)
+        {
+            var games = await GameCacheService.GetGamesTableAsync();
+            var missingGames = games.Where(g => string.IsNullOrEmpty(g.LocalImagePath)).ToList();
+            currentSyncTotal = missingGames.Count;
+            int updated = 0;
+            for (int i = 0; i < missingGames.Count; i++)
+            {
+                var game = missingGames[i];
+                currentSyncIndex = updated + 1;
+                currentSyncName = game.Name;
+                StateHasChanged();
+                bool success = false;
+                retryCount = 0;
+                while (!success && retryCount < maxRetries)
+                {
+                    try
+                    {
+                        await GameCacheService.CacheGameImageAsync(game);
+                        success = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.Message.Contains("429") || ex.Message.Contains("401"))
+                        {
+                            syncGridDbMessage = $"Hit rate limit. Waiting 1 minute... (Retry {retryCount + 1} of {maxRetries})";
+                            StateHasChanged();
+                            await Task.Delay(60000); // Wait 1 minute
+                            retryCount++;
+                        }
+                        else
+                        {
+                            syncGridDbMessage = $"Error: {ex.Message}";
+                            StateHasChanged();
+                            break;
+                        }
+                    }
+                }
+                if (!success)
+                {
+                    syncGridDbMessage = $"Hit rate limit too many times. Cancelling process.";
+                    StateHasChanged();
+                    break;
+                }
+                updated++;
+                await Task.Delay(1500);
+            }
+            if (retryCount < maxRetries)
+            {
+                syncGridDbMessage = $"Synced images for {updated} games (only missing) from SteamGridDB.";
+            }
+        }
+        else
+        {
+            syncGridDbMessage = "GameCacheService not available.";
+        }
+        currentSyncIndex = 0;
+        currentSyncTotal = 0;
+        currentSyncName = string.Empty;
+        syncingGridDb = false;
+    }
+
+    private async Task ShowGamesTable()
+    {
+        showGamesTable = false;
+        gamesTable = null;
+        if (GameCacheService != null)
+        {
+            gamesTable = await GameCacheService.GetGamesTableAsync();
+            showGamesTable = true;
+        }
+    }
+
+    private async Task ShowLibraryCacheTable()
+    {
+        showLibraryCacheTable = false;
+        libraryCacheTable = null;
+        if (GameCacheService != null)
+        {
+            libraryCacheTable = await GameCacheService.GetLibraryCacheAsync();
+            showLibraryCacheTable = true;
+        }
+    }   
+} 

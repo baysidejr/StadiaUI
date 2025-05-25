@@ -1,0 +1,28 @@
+@namespace StadiaUI.Components.Shared
+
+<div class="game-card">
+    <img src="@ImageUrl" alt="@Title game art" class="game-card-image" />
+    <div class="game-card-info">
+        <h5 class="game-card-title">@Title</h5>
+        <div class="game-card-categories">
+            @if (Categories != null)
+            {
+                foreach (var category in Categories)
+                {
+                    <span class="category-tag">@category</span>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Default Game Title";
+
+    [Parameter]
+    public string ImageUrl { get; set; } = "/images/mainImage/Destiny.jpg"; // Default placeholder image
+
+    [Parameter]
+    public List<string> Categories { get; set; } = new List<string> { "Action", "Adventure" };
+} 

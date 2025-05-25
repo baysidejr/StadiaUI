@@ -1,0 +1,55 @@
+.right-sidebar {
+    background-color: #1e1e1e; /* Slightly lighter than main dark background */
+    padding: 1rem;
+    border-radius: 8px;
+    color: #e0e0e0;
+    /* Fixed width for now, adjust as needed */
+    /* width: 320px; */ 
+}
+
+.sidebar-item {
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-item h4 {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    color: #fff;
+}
+
+.sidebar-item img {
+    width: 100%;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-item p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Specific styling for play-next to roughly match Stadia */
+.play-next-game {
+    position: relative;
+}
+.play-next-game p {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background-color: rgba(0,0,0,0.6);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.play-next-game img {
+    width: 100%;
+    height: 180px;
+    width: 300px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px #0006;
+    display: block;
+} 

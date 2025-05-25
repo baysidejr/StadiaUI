@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+
+# Configuration files with secrets
+appsettings.json
+appsettings.*.json
+!appsettings.Development.json.example
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Exclude specific wwwroot folders if they exist
+wwwroot/css/
+wwwroot/js/
+wwwroot/cached-images/
+
+# But keep static assets you want to version
+!wwwroot/app.css
+!wwwroot/favicon.png
+!wwwroot/icon-192.png
+!wwwroot/index.html
+!wwwroot/images/
+!wwwroot/sounds/
+
+# Keep Bootstrap lib files (these are dependencies)
+!wwwroot/lib/

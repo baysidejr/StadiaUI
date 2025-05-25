@@ -1,0 +1,85 @@
+﻿@rendermode InteractiveServer
+@using StadiaUI.Components.Shared
+
+@page "/"
+
+<PageTitle>Home - Game Launcher</PageTitle>
+
+<div class="home-page-grid">
+    <div class="main-content-area">
+        @if (featuredGame != null)
+        {
+            var heroImageUrl = !string.IsNullOrEmpty(featuredGame.SteamGridImageUrl)
+                ? featuredGame.SteamGridImageUrl
+                : featuredGame.SteamIconUrl;
+            <HeroSection Title="@featuredGame.Name" ImageUrl="@heroImageUrl" AppId="@featuredGame.SteamAppId" />
+        }
+        
+        <div class="library-section">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Your Library</h2>
+                <a href="/allgames" class="see-all-link">See All</a>
+            </div>
+            <div class="game-grid large-cards">
+                @if (gamesFromDb != null && gamesFromDb.Any())
+                {
+                    foreach (var game in gamesFromDb.Take(3))
+                    {
+                        var imageUrl = !string.IsNullOrEmpty(game.SteamGridImageUrl)
+                            ? game.SteamGridImageUrl
+                            : game.SteamIconUrl;
+                        var categories = string.IsNullOrWhiteSpace(game.Categories)
+                            ? new List<string>()
+                            : game.Categories.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                        <button class="game-card-launch" @onclick="() => PlayAndLaunchGame(game.SteamAppId)">
+                            <GameCard Title="@game.Name" ImageUrl="@imageUrl" Categories="@categories" />
+                        </button>
+                    }
+                }
+                else
+                {
+                    <p>No games loaded. Go to <a href="/settings">Settings</a> to fetch your Steam library.</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="sidebar-area">
+        <RightSidebar />
+    </div>
+</div>
+
+@code {
+    [Inject] public StadiaUI.Services.GameCacheService GameCacheService { get; set; } = default!;
+    [Inject] public IJSRuntime JS { get; set; } = default!;
+
+    public List<CachedGame> gamesFromDb { get; set; } = new();
+    public CachedGame? featuredGame { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        gamesFromDb = await GameCacheService.GetGamesAsync();
+        Shuffle(gamesFromDb);
+        if (gamesFromDb.Any())
+        {
+            var rng = new Random();
+            featuredGame = gamesFromDb[rng.Next(gamesFromDb.Count)];
+        }
+    }
+
+    private static void Shuffle<T>(IList<T> list)
+    {
+        var rng = new Random();
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = rng.Next(n + 1);
+            (list[k], list[n]) = (list[n], list[k]);
+        }
+    }
+
+    private async Task PlayAndLaunchGame(int appId)
+    {
+        await JS.InvokeVoidAsync("playSoundAndLaunchSteam", appId);
+    }
+}

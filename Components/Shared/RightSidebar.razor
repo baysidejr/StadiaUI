@@ -1,0 +1,59 @@
+@namespace StadiaUI.Components.Shared
+@inject StadiaUI.Services.GameCacheService GameCacheService
+@inject IJSRuntime JS
+
+<div class="right-sidebar">
+    <div class="sidebar-item">
+        <h4>Play next</h4>
+        <div class="play-next-game">
+            @if (randomGame != null)
+            {
+                var imageUrl = !string.IsNullOrEmpty(randomGame.LocalImagePath) ? randomGame.LocalImagePath : (!string.IsNullOrEmpty(randomGame.SteamGridImageUrl) ? randomGame.SteamGridImageUrl : randomGame.SteamIconUrl);
+                <button class="game-card-launch" style="background:none;border:none;padding:0;margin:0;cursor:pointer;text-align:inherit;" @onclick="() => LaunchGame(randomGame.SteamAppId)">
+                    <img src="@imageUrl" alt="@randomGame.Name" style="border-radius:8px;box-shadow:0 2px 8px #0006;" />
+                    <p style="margin:0.5rem 0 0 0;font-weight:bold;color:#fff;">@randomGame.Name</p>
+                </button>
+            }
+            else
+            {
+                <img src="/images/mainImage/Destiny.jpg" alt="Next Game" />
+                <p style="color:#fff;">No games found</p>
+            }
+        </div>
+    </div>
+    <div class="sidebar-item">
+        <h4>News and updates</h4>
+        <div class="news-item">
+            <a href="https://store.steampowered.com/news/" target="_blank" rel="noopener noreferrer">
+                <img src="/images/mainImage/stadianews.jpg" alt="Steam News" style="cursor:pointer;" />
+            </a>
+        </div>
+    </div>
+    <div class="sidebar-item">
+        <h4>New releases</h4>
+        <div class="new-release-item">
+            <a href="https://store.steampowered.com/explore/new/" target="_blank" rel="noopener noreferrer">
+                <img src="/images/mainImage/newreleases.jpg" alt="New Releases" style="cursor:pointer;" />
+            </a>
+        </div>
+    </div>
+</div>
+
+@* Styles moved to RightSidebar.razor.css *@
+
+@code {
+    private StadiaUI.Models.CachedGame? randomGame;
+    protected override async Task OnInitializedAsync()
+    {
+        var games = await GameCacheService.GetGamesAsync();
+        if (games != null && games.Any())
+        {
+            var rng = new Random();
+            randomGame = games[rng.Next(games.Count)];
+        }
+    }
+    private async Task LaunchGame(int appId)
+    {
+        await JS.InvokeVoidAsync("window.open", $"steam://run/{appId}", "_self");
+    }
+} 

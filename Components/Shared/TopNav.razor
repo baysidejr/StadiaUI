@@ -1,0 +1,19 @@
+@namespace StadiaUI.Components.Shared
+
+<div class="top-nav-bar">
+    <div class="logo-area">
+        <FluentIcon Value="@(Icon.FromImageUrl("/images/logos/Google-Stadia.svg"))" style="color: white; width: 50px; height: 50px;" />
+    </div>
+    
+    <FluentStack Orientation="Orientation.Horizontal" VerticalAlign="VerticalAlignment.Center" HorizontalGap="8">
+        <FluentAnchor Href="/" Appearance="Appearance.Filled" style="color: #fff; font-size: 1.3rem;">Home</FluentAnchor>
+        <FluentAnchor Href="https://store.steampowered.com" Appearance="Appearance.Filled" style="color: #fff; font-size: 1.3rem;" target="_blank" rel="noopener noreferrer">Store</FluentAnchor>
+        <FluentAnchor Href="/settings" Appearance="Appearance.Filled" style="color: #fff; font-size: 1.3rem;">Settings</FluentAnchor>
+    </FluentStack>
+
+    <div class="user-profile-section">
+        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size32.Alert())" Color="@Color.Fill" />
+        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size32.XboxController())" Color="@Color.Fill" />
+        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size32.PersonCircle())" Color="@Color.Fill" />
+    </div> 
+</div> 

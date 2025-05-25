@@ -1,0 +1,51 @@
+.game-card {
+    background-color: #2a2a2a; /* Slightly lighter than page background */
+    border-radius: 8px;
+    overflow: hidden; /* Ensures image corners are rounded if image itself isn't */
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Make card fill its grid cell height */
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.game-card-image {
+    width: 100%;
+    height: 180px; /* Fixed height for the image part, adjust as needed */
+    object-fit: cover; /* Crop image to fit, rather than stretch/squash */
+}
+
+.game-card-info {
+    padding: 0.75rem;
+    color: #e0e0e0;
+    flex-grow: 1; /* Allows this section to take up remaining space */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes categories to bottom if space allows */
+}
+
+.game-card-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.game-card-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.category-tag {
+    background-color: #404040;
+    color: #ccc;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+} 

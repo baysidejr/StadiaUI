@@ -1,0 +1,44 @@
+@rendermode InteractiveServer
+@page "/allgames"
+
+<PageTitle>All Games</PageTitle>
+
+@inject StadiaUI.Services.GameCacheService GameCacheService
+@inject IJSRuntime JS
+
+<div class="all-games-page">
+    <h2>All Games</h2>
+    @if (allGames != null && allGames.Any())
+    {
+        <div class="all-games-grid">
+            @foreach (var game in allGames)
+            {
+                var imageUrl = !string.IsNullOrEmpty(game.SteamGridImageUrl) ? game.SteamGridImageUrl : game.SteamIconUrl;
+                var categories = string.IsNullOrWhiteSpace(game.Categories)
+                    ? new List<string>()
+                    : game.Categories.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                      <button class="game-card-launch" @onclick="() => PlayAndLaunchGame(game.SteamAppId)">
+                            <GameCard Title="@game.Name" ImageUrl="@imageUrl" Categories="@categories" />
+                        </button>
+            }
+        </div>
+    }
+    else
+    {
+        <p>No games found. Go to <a href="/settings">Settings</a> to sync your Steam library.</p>
+    }
+</div>
+
+@code {
+    private List<StadiaUI.Models.CachedGame> allGames = new();
+    protected override async Task OnInitializedAsync()
+    {
+        var games = await GameCacheService.GetGamesAsync();
+        allGames = games.OrderBy(g => g.Name).ToList();
+    }
+    private async Task PlayAndLaunchGame(int appId)
+    {
+        Console.WriteLine("Playing and launching game: " + appId);
+        await JS.InvokeVoidAsync("playSoundAndLaunchSteam", appId);
+    }
+} 

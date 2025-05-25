@@ -1,0 +1,115 @@
+@namespace StadiaUI.Components.Shared
+
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject StadiaUI.Services.IntroService IntroService
+@using Microsoft.AspNetCore.Components;
+
+@if (show)
+{
+    <div class="intro-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: #000;">
+        
+        @if (needsUserInteraction)
+        {
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10000;" 
+                 @onclick="StartWithAudio">
+                <div style="text-align: center; color: white; font-family: Arial, sans-serif;">
+                    <div style="font-size: 32px; margin-bottom: 20px;">🎮</div>
+                    <div style="font-size: 24px; margin-bottom: 10px;">Click to Start</div>
+                    <div style="font-size: 16px; opacity: 0.8;">Experience with audio</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="stadia-logo-container">
+                <img src="/images/logos/Google-Stadia.svg" class="stadia-logo" />
+                <div class="swirl"></div>
+            </div>
+        }
+        
+        @* Debug info *@
+        @if (false) // Set to true for debugging
+        {
+            <div style="color: white; position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.1); padding: 5px;">
+                Debug: show = @show, step = @debugStep
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool show = true;
+    private bool needsUserInteraction = true;
+    private string debugStep = "initial";
+    private bool checkedStorage = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !checkedStorage)
+        {
+            checkedStorage = true;
+            // Check localStorage for intro completion
+            var completed = await JS.InvokeAsync<bool>("eval", "localStorage.getItem('introCompleted') === 'true'");
+            if (completed)
+            {
+                show = false;
+                StateHasChanged(); // re-render to hide the loader
+                return;
+            }
+            debugStep = "firstRender";
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartWithAudio()
+    {
+        needsUserInteraction = false;
+        StateHasChanged();
+        // Small delay to show the transition
+        await Task.Delay(100);
+        await PlayIntroAndHideAsync();
+    }
+
+    private async Task PlayIntroAndHideAsync()
+    {
+        try
+        {
+            debugStep = "playingAudio";
+            StateHasChanged();
+            // Try to play audio, but don't fail if blocked by autoplay policy
+            await JS.InvokeVoidAsync("eval", @"
+                console.log('Attempting audio playback');
+                try {
+                    const audio = new Audio('/sounds/stadiaIntro.mp3');
+                    audio.volume = 0.5;
+                    audio.play().then(() => {
+                        console.log('Audio playing successfully');
+                    }).catch(error => {
+                        console.log('Audio blocked by autoplay policy (this is normal)');
+                    });
+                } catch (error) {
+                    console.log('Audio not available, continuing with visual intro only');
+                }
+            ");
+            debugStep = "visualIntro";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            debugStep = $"error: {ex.Message}";
+            StateHasChanged();
+            Console.WriteLine($"Server-side error: {ex.Message}");
+        }
+        await Task.Delay(4000);
+        debugStep = "hiding";
+        StateHasChanged();
+        show = false;
+        StateHasChanged();
+        // Set flag in localStorage so intro doesn't show again
+        await JS.InvokeVoidAsync("eval", "localStorage.setItem('introCompleted', 'true')");
+        // Notify that intro is complete
+        IntroService.CompleteIntro();
+        debugStep = "hidden";
+    }
+}

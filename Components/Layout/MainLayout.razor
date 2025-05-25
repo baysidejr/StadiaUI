@@ -1,0 +1,31 @@
+﻿@using StadiaUI.Components.Shared
+@using StadiaUI.Services
+@inherits LayoutComponentBase
+@inject IntroService IntroService
+@implements IDisposable
+
+<IntroLoader />
+
+@if (true)
+{
+    <div class="page">
+        <TopNav />
+        <main>
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        IntroService.OnIntroCompleted += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        IntroService.OnIntroCompleted -= StateHasChanged;
+    }
+}

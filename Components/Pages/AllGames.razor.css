@@ -1,0 +1,33 @@
+/* All Games grid styles */
+.all-games-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 1200px) {
+    .all-games-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+@media (max-width: 900px) {
+    .all-games-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 600px) {
+    .all-games-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.game-card-launch {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    cursor: pointer;
+    text-align: inherit;
+} 

@@ -1,0 +1,29 @@
+@namespace StadiaUI.Components.Shared
+@using Microsoft.AspNetCore.Components;
+
+<div class="hero-section" style="@(ImageUrl != null ? $"background-image: url('{ImageUrl}');" : null)">
+    @if (AppId != null)
+    {
+        <button class="stadia-play-button smokey" @onclick="PlayAndLaunch">
+            <span class="play-icon">&#9654;</span>
+        </button>
+    }
+    <div class="hero-title-box">
+        <h2>@(Title ?? "Featured Game Title")</h2>
+    </div>
+</div>
+
+@* Styles moved to HeroSection.razor.css *@
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public int? AppId { get; set; }
+
+    [Inject] public IJSRuntime JS { get; set; } = default!;
+
+    private async Task PlayAndLaunch()
+    {
+        await JS.InvokeVoidAsync("playSoundAndLaunchSteam", AppId);
+    }
+} 
