@@ -4,8 +4,8 @@ obj/
 
 # Configuration files with secrets
 appsettings.json
-appsettings.*.json
-!appsettings.Development.json.example
+appsettings.Development.json
+!appsettings.example.json
 
 # Database files
 *.db
