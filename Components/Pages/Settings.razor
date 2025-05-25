@@ -114,10 +114,35 @@
     </div>
 </div>
 
+@if (showGridDbSelectionDialog && gridDbMatches.Any())
+{
+    <div class="modal-backdrop" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:1000;">
+        <div class="modal-dialog" style="background:white;padding:2rem;margin:10vh auto;max-width:500px;box-shadow:0 2px 16px #0008;">
+            <h4>Select the correct game for: @gameNeedingSelection?.Name</h4>
+            <ul>
+                @foreach (var match in gridDbMatches)
+                {
+                    <li style="margin-bottom:1rem;">
+                        <button class="btn btn-primary" @onclick="() => OnGridDbGameSelected(match)">
+                            @match.name (@match.id) @if (match.verified) { <span style="color:green;">[Verified]</span> }
+                        </button>
+                    </li>
+                }
+            </ul>
+            @if (!string.IsNullOrEmpty(gridDbSelectionError))
+            {
+                <div style="color:red;">@gridDbSelectionError</div>
+            }
+            <button class="btn btn-secondary" @onclick="() => { showGridDbSelectionDialog = false; }">Cancel</button>
+        </div>
+    </div>
+}
+
 @code {
     [Inject] public SteamService SteamService { get; set; } = default!;
     [Inject] public SteamGridDbService? SteamGridService { get; set; }
     [Inject] public GameCacheService? GameCacheService { get; set; }
+    [Inject] public HttpClient Http { get; set; } = default!;
 
     public OwnedGamesResponse? ownedGames { get; set; }
     public Dictionary<int, string> betterImages { get; set; } = new();
@@ -133,6 +158,10 @@
     public int currentSyncTotal = 0;
     public string currentSyncName = string.Empty;
     public string sampleGamesMessage = string.Empty;
+    private bool showGridDbSelectionDialog = false;
+    private List<SteamGridDbGame> gridDbMatches = new();
+    private CachedGame? gameNeedingSelection = null;
+    private string gridDbSelectionError = "";
 
     private async Task SyncSteamLibraryToDatabase()
     {
@@ -185,7 +214,23 @@
                     }
                     catch (Exception ex)
                     {
-                        if (ex.Message.Contains("429") || ex.Message.Contains("401"))
+                        if (ex.Message.Contains("Multiple SteamGridDB matches found"))
+                        {
+                            // Fetch matches from API
+                            var matches = await Http.GetFromJsonAsync<List<SteamGridDbGame>>($"/api/steamproxy/game/{game.SteamAppId}/grid-matches");
+                            gridDbMatches = matches ?? new();
+                            gameNeedingSelection = game;
+                            showGridDbSelectionDialog = true;
+                            StateHasChanged();
+                            // Wait for user to pick before continuing
+                            while (showGridDbSelectionDialog)
+                            {
+                                await Task.Delay(200);
+                            }
+                            // After user picks, continue loop
+                            continue;
+                        }
+                        else if (ex.Message.Contains("429") || ex.Message.Contains("401"))
                         {
                             syncGridDbMessage = $"Hit rate limit. Waiting 1 minute... (Retry {retryCount + 1} of {maxRetries})";
                             StateHasChanged();
@@ -256,7 +301,23 @@
                     }
                     catch (Exception ex)
                     {
-                        if (ex.Message.Contains("429") || ex.Message.Contains("401"))
+                        if (ex.Message.Contains("Multiple SteamGridDB matches found"))
+                        {
+                            // Fetch matches from API
+                            var matches = await Http.GetFromJsonAsync<List<SteamGridDbGame>>($"/api/steamproxy/game/{game.SteamAppId}/grid-matches");
+                            gridDbMatches = matches ?? new();
+                            gameNeedingSelection = game;
+                            showGridDbSelectionDialog = true;
+                            StateHasChanged();
+                            // Wait for user to pick before continuing
+                            while (showGridDbSelectionDialog)
+                            {
+                                await Task.Delay(200);
+                            }
+                            // After user picks, continue loop
+                            continue;
+                        }
+                        else if (ex.Message.Contains("429") || ex.Message.Contains("401"))
                         {
                             syncGridDbMessage = $"Hit rate limit. Waiting 1 minute... (Retry {retryCount + 1} of {maxRetries})";
                             StateHasChanged();
@@ -316,4 +377,29 @@
             showLibraryCacheTable = true;
         }
     }   
+
+    private async Task OnGridDbGameSelected(SteamGridDbGame selected)
+    {
+        if (gameNeedingSelection == null) return;
+        try
+        {
+            // Download and cache the image using the selected id
+            var result = await Http.GetFromJsonAsync<dynamic>($"/api/steamproxy/steamgriddb/game/{selected.id}/image");
+            if (result != null && gameNeedingSelection != null)
+            {
+                gameNeedingSelection.SteamGridImageUrl = (string)result.imageUrl;
+                gameNeedingSelection.LocalImagePath = Path.Combine(GameCacheService.ImagesCachePath, $"{gameNeedingSelection.SteamAppId}.jpg");
+                // Download the image to local cache
+                var imageBytes = await Http.GetByteArrayAsync((string)result.imageUrl);
+                var localPath = Path.Combine(GameCacheService.ImagesCachePath, $"{gameNeedingSelection.SteamAppId}.jpg");
+                await File.WriteAllBytesAsync(localPath, imageBytes);
+            }
+            showGridDbSelectionDialog = false;
+            gridDbSelectionError = "";
+        }
+        catch (Exception ex)
+        {
+            gridDbSelectionError = $"Failed to cache image: {ex.Message}";
+        }
+    }
 } 

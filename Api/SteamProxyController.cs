@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using StadiaUI.Models;
 using StadiaUI.Services;
+using Microsoft.EntityFrameworkCore;
+using StadiaUI.Data;
 
 namespace StadiaUI.Api;
 
@@ -14,15 +16,18 @@ public class SteamProxyController : ControllerBase
     private readonly HttpClient _httpClient;
     private readonly SteamConfig _config;
     private readonly SteamGridDbService _steamGridDbService;
+    private readonly GameDbContext _dbContext;
 
     public SteamProxyController(
         IHttpClientFactory httpClientFactory, 
         IConfiguration configuration,
-        SteamGridDbService steamGridDbService)
+        SteamGridDbService steamGridDbService,
+        GameDbContext dbContext)
     {
         _httpClient = httpClientFactory.CreateClient();
         _config = configuration.GetSection("Steam").Get<SteamConfig>();
         _steamGridDbService = steamGridDbService;
+        _dbContext = dbContext;
     }
 
     [HttpGet("ownedgames")]
@@ -42,7 +47,7 @@ public class SteamProxyController : ControllerBase
     [HttpGet("game/{steamAppId}/image")]
     public async Task<IActionResult> GetGameImage(int steamAppId, [FromQuery] string type = "grid")
     {
-        var imageUrl = await _steamGridDbService.GetBestImageForGame(steamAppId, type);
+        var imageUrl = await _steamGridDbService.GetBestImageForGame(steamAppId, null, type);
         
         if (string.IsNullOrEmpty(imageUrl))
             return NotFound($"No {type} image found for Steam app {steamAppId}");
@@ -56,10 +61,28 @@ public class SteamProxyController : ControllerBase
         var tasks = steamAppIds.Select(async appId => new
         {
             steamAppId = appId,
-            imageUrl = await _steamGridDbService.GetBestImageForGame(appId, type)
+            imageUrl = await _steamGridDbService.GetBestImageForGame(appId, null, type)
         });
 
         var results = await Task.WhenAll(tasks);
         return Ok(results.Where(r => !string.IsNullOrEmpty(r.imageUrl)));
+    }
+
+    [HttpGet("game/{steamAppId}/grid-matches")]
+    public async Task<IActionResult> GetGridMatches(int steamAppId)
+    {
+        var game = await _dbContext.Games.FirstOrDefaultAsync(g => g.SteamAppId == steamAppId);
+        if (game == null) return NotFound();
+        var matches = await _steamGridDbService.SearchGamesByNameAsync(game.Name);
+        return Ok(matches);
+    }
+
+    [HttpGet("steamgriddb/game/{steamGridDbId}/image")]
+    public async Task<IActionResult> GetImageBySteamGridDbId(int steamGridDbId, [FromQuery] string type = "grid")
+    {
+        var imageUrl = await _steamGridDbService.GetBestImageForGameById(steamGridDbId, type);
+        if (string.IsNullOrEmpty(imageUrl))
+            return NotFound($"No {type} image found for SteamGridDB game {steamGridDbId}");
+        return Ok(new { imageUrl, type, steamGridDbId });
     }
 }

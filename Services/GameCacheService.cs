@@ -31,6 +31,8 @@ public class GameCacheService
         Directory.CreateDirectory(_imagesCachePath);
     }
 
+    public string ImagesCachePath => _imagesCachePath;
+
     public async Task<List<CachedGame>> GetGamesAsync()
     {
         return await _context.Games
@@ -101,23 +103,53 @@ public class GameCacheService
     {
         try
         {
-            // Make the HTTP request manually to capture the JSON
             var httpClient = new HttpClient();
             var apiKey = _steamGridService.ApiKey;
             httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-            var response = await httpClient.GetAsync($"https://www.steamgriddb.com/api/v2/search/autocomplete/{game.SteamAppId}");
-            var json = await response.Content.ReadAsStringAsync();
 
-            Console.WriteLine($"[DEBUG] SteamGridDB JSON for {game.Name} ({game.SteamAppId}): {json}");
+            // Try to get the game by Steam App ID
+            var steamGridGame = await _steamGridService.GetGameBySteamAppId(game.SteamAppId);
+            int? steamGridDbId = null;
+            if (steamGridGame == null)
+            {
+                // Fallback: search by name
+                var matches = await _steamGridService.SearchGamesByNameAsync(game.Name);
+                if (matches.Count == 1)
+                {
+                    steamGridDbId = matches[0].id;
+                    Console.WriteLine($"[INFO] Only one match found for '{game.Name}': {matches[0].name} (id={matches[0].id})");
+                }
+                else if (matches.Count > 1)
+                {
+                    // In a real app, prompt the user to select. For now, log and throw.
+                    Console.WriteLine($"[WARNING] Multiple matches found for '{game.Name}':");
+                    foreach (var m in matches)
+                    {
+                        Console.WriteLine($"  id={m.id}, name={m.name}, verified={m.verified}");
+                    }
+                    throw new Exception($"Multiple SteamGridDB matches found for '{game.Name}'. User selection required.");
+                }
+                else
+                {
+                    Console.WriteLine($"[WARNING] No SteamGridDB matches found for '{game.Name}'");
+                    throw new Exception($"No SteamGridDB matches found for '{game.Name}'");
+                }
+            }
+            else
+            {
+                steamGridDbId = steamGridGame.id;
+            }
 
-            // Now continue as before using your model
-            var imageUrl = await _steamGridService.GetBestImageForGame(game.SteamAppId);
+            Console.WriteLine($"Selected SteamGridDB ID: {steamGridDbId}");
+            // Now continue as before using the selected id
+            var imageUrl = await _steamGridService.GetBestImageForGame(game.SteamAppId, steamGridDbId);
             if (!string.IsNullOrEmpty(imageUrl))
             {
                 var fileName = $"{game.SteamAppId}.jpg";
                 var localPath = Path.Combine(_imagesCachePath, fileName);
 
-                var imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
+                var imageClient = new HttpClient(); // No auth header!
+                var imageBytes = await imageClient.GetByteArrayAsync(imageUrl);
                 await File.WriteAllBytesAsync(localPath, imageBytes);
 
                 game.SteamGridImageUrl = imageUrl;

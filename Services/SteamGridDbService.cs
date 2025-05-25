@@ -122,24 +122,61 @@ public class SteamGridDbService
         }
     }
 
-    public async Task<string?> GetBestImageForGame(int steamAppId, string imageType = "grid")
+    public async Task<List<SteamGridDbGame>> SearchGamesByNameAsync(string name)
     {
-        var game = await GetGameBySteamAppId(steamAppId);
-        if (game == null) return null;
+        try
+        {
+            Console.WriteLine($"Searching for games by name '{name}'");
+            var response = await _httpClient.GetAsync($"{BaseUrl}/search/autocomplete/{Uri.EscapeDataString(name)}");
+            if (!response.IsSuccessStatusCode) return new List<SteamGridDbGame>();
 
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<SteamGridDbResponse<SteamGridDbGame>>(json, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            return result?.data?.ToList() ?? new List<SteamGridDbGame>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching for games by name '{name}': {ex.Message}");
+            return new List<SteamGridDbGame>();
+        }
+    }
+
+    public async Task<string?> GetBestImageForGameById(int steamGridDbGameId, string imageType = "grid")
+    {
+        Console.WriteLine($"Getting best image for game {steamGridDbGameId} with type {imageType}");
         SteamGridDbImage[] images = imageType.ToLower() switch
         {
-            "hero" => await GetGameHeroes(game.id),
-            "grid" => await GetGameGrids(game.id),
-            _ => await GetGameGrids(game.id)
+            "hero" => await GetGameHeroes(steamGridDbGameId),
+            "grid" => await GetGameGrids(steamGridDbGameId),
+            _ => await GetGameGrids(steamGridDbGameId)
         };
 
-        // Return the highest scored image
         var bestImage = images
             .Where(img => !img.nsfw)
             .OrderByDescending(img => img.score)
             .FirstOrDefault();
 
+        Console.WriteLine($"Best image: {bestImage?.url}");
         return bestImage?.url;
+    }
+
+    public async Task<string?> GetBestImageForGame(int steamAppId, int? steamGridDbGameId = null, string imageType = "grid")
+    {
+        Console.WriteLine($"Getting best image for game {steamAppId} with type {imageType}");
+        int? gameId = steamGridDbGameId;
+        if (!gameId.HasValue)
+        {   
+            Console.WriteLine($"Getting game by SteamAppId {steamAppId}");
+            var game = await GetGameBySteamAppId(steamAppId);
+            if (game == null) return null;
+            gameId = game.id;
+        }
+
+        Console.WriteLine($"Getting best image for game {gameId.Value} with type {imageType}");
+        return await GetBestImageForGameById(gameId.Value, imageType);
     }
 }
