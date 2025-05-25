@@ -9,6 +9,11 @@ A simple Steam game launcher inspired by the Stadia UI, built with Blazor and .N
 - Local caching of your game library and images
 - Responsive design with Fluent UI components
 
+![image](https://github.com/user-attachments/assets/5fc51950-aa67-4e81-8d43-db382054f0b1)
+
+![image](https://github.com/user-attachments/assets/d37d05e1-9b62-4b67-889b-405dca050539)
+
+
 ## Getting Started
 
 ### Prerequisites
